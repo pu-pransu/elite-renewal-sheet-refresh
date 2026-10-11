@@ -101,6 +101,8 @@ def main(local=False):
     log("Writing to Google Sheet")
     ws.batch_clear(["A:J"])
     ws.update(range_name="A1", values=[header] + rows, value_input_option="USER_ENTERED")
+    if ws.col_count < 12:  # make room for the timestamp cell
+        ws.add_cols(12 - ws.col_count)
     ws.update_acell("L1", f"Last refreshed (UTC): {dt.datetime.utcnow():%Y-%m-%d %H:%M}")
     log("Done")
 
