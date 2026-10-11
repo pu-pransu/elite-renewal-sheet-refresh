@@ -1,8 +1,3 @@
--- Elite renewals by expiry month, with portfolio-value and engagement cuts
--- Output columns: expiry_date/week/month, renewed_date/week, renewal_month,
---                 portfolio_value, avg_sessions_month_bucket, usrs, subscription_purchase_count
--- subscription_purchase_count: 1 = not renewed (yet), 2 = renewed
-
 with base as (
     select
         subs.userid,
@@ -30,7 +25,8 @@ with base as (
         qualify row_number() over (partition by repaymentid order by updatedat asc) = 1
     ) as cb on cb.repaymentid = txn.repaymentid
     where planid like '%advisory-elite%'
-      and subs.status in ('ACTIVE','EXPIRED','AWAITING_ACTIVATION','CANCELLED',' ')
+    and planid not like '%advisory-elite-1m%'
+      and subs.status in ('ACTIVE','EXPIRED','AWAITING_ACTIVATION','CANCELLED')
       and subs.starttime is not null
 ),
 
@@ -84,7 +80,7 @@ sessions_monthly as (             -- distinct sessions per user per month
     group by all
 ),
 
-engagement as (                   -- avg monthly sessions in months M-4..M-2 before expiry
+engagement as (                   
     select
         e.userid,
         e.expiry_month,
