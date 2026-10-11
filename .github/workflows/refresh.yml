@@ -1,8 +1,10 @@
 name: Elite renewal sheet - daily refresh
 
 on:
-  schedule:
-    - cron: "30 2 * * *"   # 08:00 IST every day
+  # Daily schedule is paused until Snowflake credentials work from GitHub (network policy / service user).
+  # Re-enable by uncommenting the next two lines.
+  # schedule:
+  #   - cron: "30 2 * * *"   # 08:00 IST every day
   workflow_dispatch: {}     # "Run workflow" button for manual refresh
 
 jobs:

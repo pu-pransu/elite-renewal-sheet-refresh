@@ -1,0 +1,4 @@
+snowflake-connector-python[secure-local-storage]==3.12.3
+gspread==6.1.4
+google-auth==2.35.0
+cryptography==43.0.3

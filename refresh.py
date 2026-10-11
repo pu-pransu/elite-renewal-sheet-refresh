@@ -10,6 +10,13 @@ Required environment variables (set as GitHub Actions secrets):
   GOOGLE_SERVICE_ACCOUNT_JSON   (full JSON key of a service account that has Editor access to the sheet)
 Optional:
   SHEET_ID (defaults to the Elite Renewal Cohorts sheet), RAW_TAB (default 'Raw Data')
+
+Local mode (python refresh.py --local):
+  Signs in to Snowflake with your normal Google SSO (browser) instead of a password/token.
+  The SSO ID token is cached in your OS keystore, so the browser only opens occasionally
+  (needs ALLOW_ID_TOKEN = TRUE on the Snowflake account and `pip install -r requirements-local.txt`).
+  Needs SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_WAREHOUSE, SNOWFLAKE_ROLE and
+  GOOGLE_SERVICE_ACCOUNT_FILE (path to the service-account JSON key file) in the environment.
 """
 import datetime as dt
 import json
@@ -31,7 +38,7 @@ def log(msg):
     print(f"[{dt.datetime.utcnow():%Y-%m-%d %H:%M:%S}Z] {msg}", flush=True)
 
 
-def snowflake_conn():
+def snowflake_conn(local=False):
     kw = dict(
         account=os.environ["SNOWFLAKE_ACCOUNT"],
         user=os.environ["SNOWFLAKE_USER"],
@@ -40,7 +47,10 @@ def snowflake_conn():
         database="REPORTS_DB",
     )
     pk = os.environ.get("SNOWFLAKE_PRIVATE_KEY")
-    if pk:
+    if local:
+        kw["authenticator"] = "externalbrowser"
+        kw["client_store_temporary_credential"] = True  # cache SSO ID token -> fewer browser prompts
+    elif pk:
         from cryptography.hazmat.primitives import serialization
         key = serialization.load_pem_private_key(pk.encode(), password=None)
         kw["private_key"] = key.private_bytes(
@@ -61,9 +71,9 @@ def to_cell(v):
     return v if isinstance(v, (int, float, str)) else str(v)
 
 
-def main():
+def main(local=False):
     log("Running Snowflake query")
-    with snowflake_conn() as conn:
+    with snowflake_conn(local) as conn:
         cur = conn.cursor()
         cur.execute(QUERY)
         header = [c[0].upper() for c in cur.description]
@@ -74,10 +84,14 @@ def main():
         log(f"ABORT: only {len(rows)} rows (< {MIN_ROWS}); sheet left untouched")
         sys.exit(1)
 
-    creds = Credentials.from_service_account_info(
-        json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]),
-        scopes=["https://www.googleapis.com/auth/spreadsheets"],
-    )
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    key_file = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE")
+    if key_file:
+        creds = Credentials.from_service_account_file(key_file, scopes=scopes)
+    else:
+        creds = Credentials.from_service_account_info(
+            json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]), scopes=scopes
+        )
     ws = gspread.authorize(creds).open_by_key(SHEET_ID).worksheet(RAW_TAB)
 
     needed = len(rows) + 1
@@ -92,4 +106,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(local="--local" in sys.argv)

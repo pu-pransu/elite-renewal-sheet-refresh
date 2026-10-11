@@ -21,3 +21,26 @@ Cell `Raw Data!L1` shows the last refresh time.
 - Safety check: if the query returns < 1,000 rows the job fails and the sheet is not touched.
 - Failed runs email the repo owner (GitHub default).
 - To change the query, edit `query.sql` (no trailing semicolon needed).
+
+## Local mode (works today, no token needed)
+
+Run from your own laptop with your normal Google SSO login:
+
+```bash
+pip install -r requirements-local.txt
+export SNOWFLAKE_ACCOUNT="JPMVCZF-RG24538"
+export SNOWFLAKE_USER="PRANSU.KUMAR@POWERUP.MONEY"
+export SNOWFLAKE_WAREHOUSE="PRODUCT_WH"
+export SNOWFLAKE_ROLE="PRODUCT_ROLE"
+export GOOGLE_SERVICE_ACCOUNT_FILE="/path/to/service-account-key.json"
+python refresh.py --local
+```
+
+(On Windows PowerShell use `$env:NAME="value"` instead of `export`.)
+
+A browser tab opens for the Google sign-in. The ID token is then cached in the OS keystore so the
+browser only reopens occasionally. Caching needs `ALTER ACCOUNT SET ALLOW_ID_TOKEN = TRUE` (ACCOUNTADMIN).
+Without it the script still works, but the browser opens on every run.
+
+The GitHub schedule is paused until a service user / network policy exists; re-enable it in
+`.github/workflows/refresh.yml`.
